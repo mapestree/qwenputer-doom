@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qwenputer E1M1</title>
+<style>
+:root{--bg:#f4f4f0;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--bd:#dcdcd5;--acc:#2f6fed;--ok:#2e9d5b;--bad:#c0392b;--scr:#10100f;--scrfg:#e9e4d0}
+@media (prefers-color-scheme:dark){:root{--bg:#131312;--fg:#e8e8e3;--mut:#9a9a92;--card:#1e1e1c;--bd:#33332f;--acc:#6b9bff;--ok:#52c785;--bad:#f07a6a;--scr:#0a0a09}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 10px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 8px;font-weight:600}
+.sub{color:var(--mut);font-size:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;min-width:0}
+.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}@media(max-width:860px){.grid{grid-template-columns:1fr}}
+#screen{background:var(--scr);color:var(--scrfg);border-radius:8px;padding:14px;margin:0;overflow:auto;
+ font:clamp(11px,2.1vw,20px)/1.05 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;min-height:14em}
+#screen.busy{opacity:.55}
+.keys{display:grid;grid-template-columns:repeat(3,72px);gap:6px;margin:8px 0}
+button{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer}
+button.p{background:var(--acc);color:#fff;border:0;padding:8px 16px}button:disabled{opacity:.5;cursor:default}
+.k{height:46px;padding:4px;font-family:ui-monospace,monospace;font-size:15px}.k small{display:block;font-size:10px;color:var(--mut)}
+#queue{font:16px ui-monospace,monospace;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);min-height:34px;word-break:break-all}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stat{display:inline-block;margin:0 16px 6px 0}.stat b{font-size:17px;display:block;font-variant-numeric:tabular-nums}.stat span{font-size:11px;color:var(--mut)}
+#log{max-height:230px;overflow:auto;font:12px ui-monospace,monospace}#log div{display:flex;gap:8px;white-space:nowrap}#log .n{width:28px;color:var(--mut)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+#win{display:none;background:color-mix(in srgb,var(--ok) 18%,transparent);border:1px solid var(--ok);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-weight:600}
+details summary{cursor:pointer;color:var(--mut)}details p{margin:6px 0}
+</style></head><body><main>
+<h1>Doom E1M1 on the Qwenputer <span class="sub" style="font-weight:400">— every frame computed by a RISC-V CPU inside Qwen3.5-4B's weights</span></h1>
+<div id="win">EXIT REACHED — E1M1 complete.</div>
+<div class="grid">
+ <div class="card">
+  <pre id="screen">Press “Start” to render the first frame.</pre>
+  <p class="sub" id="prog" style="margin:6px 0 0">&nbsp;</p>
+ </div>
+ <div class="card">
+  <h2>Your move</h2>
+  <div id="queue" title="queued keys"></div>
+  <div class="keys">
+   <button class="k" data-k="q">Q<small>strafe ←</small></button><button class="k" data-k="w">W<small>forward</small></button><button class="k" data-k="e">E<small>strafe →</small></button>
+   <button class="k" data-k="a">A<small>turn ←</small></button><button class="k" data-k="s">S<small>back</small></button><button class="k" data-k="d">D<small>turn →</small></button>
+  </div>
+  <div class="row"><button data-m="aaaaaaaa">turn 90° ←</button><button data-m="dddddddd">turn 90° →</button><button data-m="wwww">4 forward</button></div>
+  <div class="row"><button id="send" class="p">Send turn ⏎</button><button id="clr">Clear ⌫</button><button id="new">New game</button></div>
+  <p class="sub">Type W A S D Q E to queue keys (up to 40), Enter to send. One W = 32 map units; 8 × A or D = 90°. A turn takes ~20–40 s: the CPU executes ~15–30k instructions per frame.</p>
+  <h2 style="margin-top:12px">Game</h2>
+  <div><span class="stat"><b id="s-turn">0</b><span>turns</span></span><span class="stat"><b id="s-instr">0</b><span>instructions</span></span>
+   <span class="stat"><b id="s-chip">0</b><span>chip tokens</span></span><span class="stat"><b id="s-sec">0</b><span>GPU seconds</span></span></div>
+ </div>
+</div>
+<div class="grid" style="margin-top:12px">
+ <div class="card"><h2>Turns</h2><div id="log"></div></div>
+ <div class="card"><h2>About</h2><details open><summary>What happens on a turn</summary>
+  <p>Your keys are written into the conversation as a <code>move</code> tool call. At <code>&lt;/tool_call&gt;</code> the compiled CPU layers take over: the firmware (<code>raycast.c</code>) reads the keys from the tool-call buffer, moves you through E1M1's floor plan (from <code>doom1.wad</code>, 32 units per cell), casts 40 rays and prints the frame with <code>putchar</code>.</p>
+  <p>Every chip token is checked against a reference RV32 machine (“lock”); the game only advances on a clean run. Between turns the machine state is carried over and re-injected, the same way the driver loads any firmware.</p>
+  <p>Kept from E1M1: the floor plan and the exit switch. Not kept: heights, textures, monsters, items; doors are always open.</p></details></div>
+</div>
+</main><script>
+const $=id=>document.getElementById(id), fmt=n=>Number(n).toLocaleString();
+let q='', busy=false, started=false;
+function showQ(){$('queue').textContent=q||' ';$('send').textContent=started?'Send turn ⏎':'Start ⏎'}
+function add(k){if(busy)return;q=(q+k).slice(0,40);showQ()}
+function status(g){$('s-turn').textContent=g.turn;$('s-instr').textContent=fmt(g.instr);$('s-chip').textContent=fmt(g.chip);
+ $('s-sec').textContent=Math.round(g.seconds);$('win').style.display=g.won?'block':'none';started=g.turn>0;showQ()}
+function setBusy(b){busy=b;document.querySelectorAll('button').forEach(x=>x.disabled=b);$('screen').classList.toggle('busy',b)}
+function frameOf(t){return t.replace(/^\s*<tool_response>\n?/,'').replace(/<\/tool_response>[\s\S]*$/,'').replace(/\n$/,'')}
+function logTurn(n,keys,d){const el=document.createElement('div');
+ el.innerHTML=`<span class="n">${n}</span><span style="width:110px;overflow:hidden">${keys||'·'}</span><span>${fmt(d.instructions)} instr · ${fmt(d.chip_tokens)} chip · ${d.seconds.toFixed(1)} s</span>`+
+  `<span class="${d.clean?'ok':'bad'}">${d.clean?'lock ok':'LOCK ERROR'}</span>`;$('log').prepend(el)}
+async function turn(){
+ if(busy)return;const keys=started?q:'';setBusy(true);$('prog').textContent='prefill…';
+ try{const r=await fetch('/game/turn',{method:'POST',body:JSON.stringify({keys})});
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',turnNo=0;
+  for(;;){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+   while((i=buf.indexOf('\n\n'))>=0){const m=buf.slice(0,i);buf=buf.slice(i+2);
+    const ev=m.match(/event: (\w+)/)[1],d=JSON.parse(m.match(/data: (.*)/)[1]);
+    if(ev==='start'){turnNo=d.turn;$('prog').textContent=`turn ${d.turn}: running “${d.keys||'·'}”…`}
+    else if(ev==='progress'){const lines=frameOf(d.text).split('\n').length;
+     $('prog').textContent=`turn ${turnNo}: ${fmt(d.chip)} chip tokens · ${d.seconds}s · ${Math.round(d.chip/Math.max(d.seconds,.1))} tok/s · drawing row ${d.text.includes('<tool_response>')?lines:0}`;
+     if(d.text.includes('<tool_response>'))$('screen').textContent=frameOf(d.text)}
+    else if(ev==='done'){$('screen').textContent=frameOf(d.frame);logTurn(turnNo,keys,d);status(d.game);
+     $('prog').textContent=d.clean?`turn ${turnNo}: ${fmt(d.instructions)} instructions, ${d.seconds.toFixed(1)} s (chip ${d.chip_seconds}s, text ${d.text_seconds}s)`:
+      `turn ${turnNo} did not advance: ${JSON.stringify(d.lock_error)}`;if(d.clean)q=''}
+    else if(ev==='error'){$('prog').innerHTML=`<span class="bad">${d.message}</span>`}}}
+ }catch(e){$('prog').innerHTML=`<span class="bad">${e}</span>`}
+ setBusy(false);showQ()}
+document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>add(b.dataset.k));
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>add(b.dataset.m));
+$('send').onclick=turn;$('clr').onclick=()=>{q='';showQ()};
+$('new').onclick=async()=>{if(busy)return;status(await (await fetch('/game/new',{method:'POST'})).json());$('screen').textContent='New game. Press “Start”.';$('log').innerHTML=''};
+addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+ if('wasdqe'.includes(k)&&k.length===1){add(k);e.preventDefault()}else if(k==='enter'){turn();e.preventDefault()}
+ else if(k==='backspace'){q=q.slice(0,-1);showQ();e.preventDefault()}});
+fetch('/game/status').then(r=>r.json()).then(g=>{if(g.error)$('prog').innerHTML=`<span class="bad">${g.error}</span>`;else{status(g);if(g.frame)$('screen').textContent=frameOf(g.frame)}});showQ();
+</script></body></html>

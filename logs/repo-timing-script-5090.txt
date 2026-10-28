@@ -1,0 +1,9 @@
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+dense     17.883 ms/token        56 tok/s        36 instr/s  (hidden 3072, 11 layers, 1.56 tok/instr)
+compact   20.420 ms/token        49 tok/s        31 instr/s  (hidden 3072, 11 layers, 1.56 tok/instr)
+compact weight counts {'dense_weights': 1256398848, 'compact_weights': 204602861, 'chip_deltanet_heads': [(8, 32), (2, 32), (32, 32), (32, 32), (14, 32), (16, 32), (32, 32), (32, 32), (32, 32), (2, 32), (2, 32)]}
+executor (dense blocks) == IR on 300 positions (cuda)
+executor dense blocks batch   1 (compiled + CUDA graph)   0.399 ms/step       2505 tok/s       1602 instr/s
+executor dense blocks batch   8 (compiled + CUDA graph)   0.845 ms/step       9471 tok/s       6058 instr/s
+executor dense blocks batch  32 (compiled + CUDA graph)   0.900 ms/step      35548 tok/s      22740 instr/s

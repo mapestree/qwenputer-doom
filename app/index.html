@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qwenputer Viewer</title>
+<style>
+:root{--bg:#f4f4f0;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--bd:#dcdcd5;--acc:#2f6fed;
+--alu:#2f6fed;--mem:#2e9d5b;--ctl:#d9822b;--bn:#8e4fd6;--io:#d6457a;--nop:#8a8a84;--hl:#fff3c4}
+@media (prefers-color-scheme:dark){:root{--bg:#131312;--fg:#e8e8e3;--mut:#9a9a92;--card:#1e1e1c;--bd:#33332f;--acc:#6b9bff;
+--alu:#6b9bff;--mem:#52c785;--ctl:#f0a050;--bn:#b48af0;--io:#f07aa4;--nop:#8a8a84;--hl:#3a3418}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+main{max-width:1280px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 10px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;min-width:0}
+.mono,code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.row{display:flex;gap:8px;align-items:stretch}
+textarea{flex:1;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);resize:vertical}
+button,select{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer}
+button.p{background:var(--acc);color:#fff;border:0;padding:8px 18px}button:disabled{opacity:.5}
+.grid{display:grid;gap:12px;margin-top:12px}
+.g2{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+#out{white-space:pre-wrap;word-break:break-word;min-height:60px;max-height:240px;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
+.cpu{display:inline-block;background:color-mix(in srgb,var(--ctl) 18%,transparent);border:1px solid var(--ctl);color:var(--ctl);border-radius:6px;padding:0 6px;font-size:12px}
+.call{background:var(--bg);border-radius:6px;padding:6px 8px;margin:6px 0;border-left:3px solid var(--acc)}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#seek{flex:1;min-width:200px}
+canvas{display:block;width:100%;border-radius:4px;background:var(--bg)}
+.key span{display:inline-flex;align-items:center;margin-right:10px;font-size:12px;color:var(--mut)}.key i{width:10px;height:10px;border-radius:2px;margin-right:4px;display:inline-block}
+#cur{font-size:22px;font-weight:600;font-family:ui-monospace,monospace}
+.pill{display:inline-block;border-radius:5px;padding:0 6px;margin:1px 2px 1px 0;font-family:ui-monospace,monospace;font-size:12px;border:1px solid var(--bd);cursor:help}
+.fam-V,.fam-F0,.fam-F1,.fam-F2{background:color-mix(in srgb,var(--alu) 16%,transparent)}
+.fam-J,.fam-R,.fam-NT{background:color-mix(in srgb,var(--ctl) 16%,transparent)}
+.fam-ST0,.fam-ST1,.fam-SS0,.fam-SS1{background:color-mix(in srgb,var(--mem) 16%,transparent)}
+.fam-BD,.fam-SC{background:color-mix(in srgb,var(--bn) 16%,transparent)}
+.fam-BYTE,.fam-HALT,.fam-GO{background:color-mix(in srgb,var(--io) 16%,transparent)}
+#desc{color:var(--fg);margin-top:4px}.sub{color:var(--mut);font-size:12px}
+#regs{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.reg{border:1px solid var(--bd);border-radius:5px;padding:1px 5px;display:flex;justify-content:space-between;gap:4px;font-family:ui-monospace,monospace;font-size:11.5px}
+.reg b{font-weight:600;color:var(--mut)}.reg.z span{color:var(--mut);opacity:.6}.reg.ch{background:var(--hl);border-color:var(--ctl)}
+#code{max-height:330px;overflow:hidden;font-family:ui-monospace,monospace;font-size:12px}
+.ln{display:flex;gap:8px;padding:0 4px;white-space:pre}.ln .h{width:44px;text-align:right;color:var(--mut)}.ln .a{width:62px;color:var(--mut)}
+.ln.cur{background:var(--hl);font-weight:600}.fnh{color:var(--acc);font-weight:600;padding:3px 4px 0}
+#csrc{max-height:260px;overflow:auto;margin:6px 0 0;white-space:pre}
+.bn{display:flex;gap:8px;align-items:baseline;border-bottom:1px dashed var(--bd);padding:2px 0;font-family:ui-monospace,monospace;font-size:12px}
+.bn b{width:30px;color:var(--bn)}.bn span{word-break:break-all}.bn.ch span{background:var(--hl)}.bn.z span{color:var(--mut)}
+.bar{display:flex;align-items:center;gap:6px;font-size:12px;margin:1px 0}.bar .l{width:92px;font-family:ui-monospace,monospace;color:var(--mut);overflow:hidden;text-overflow:ellipsis}
+.bar .t{flex:1;height:9px;background:var(--bg);border-radius:3px;overflow:hidden}.bar .t i{display:block;height:100%;background:var(--acc)}.bar .n{width:46px;text-align:right;font-family:ui-monospace,monospace}
+#log div{display:flex;gap:8px;white-space:nowrap;font-family:ui-monospace,monospace;font-size:11.5px;overflow:hidden}#log .n{width:40px;color:var(--mut)}#log .a{width:70px;color:var(--mut)}#log .s{width:190px;overflow:hidden;text-overflow:ellipsis}
+#err{color:#c0392b}details summary{cursor:pointer;color:var(--mut)}details p{margin:6px 0}
+.stat{display:inline-block;margin-right:16px}.stat b{font-size:18px;display:block}.stat span{font-size:11px;color:var(--mut)}
+</style></head><body><main>
+<h1>Qwenputer viewer <span class="sub" style="font-weight:400">— a RISC-V computer inside Qwen3.5-4B's weights</span></h1>
+
+<div class="card"><div class="row" style="margin-bottom:8px"><select id="fw" style="flex:1"></select></div>
+<div class="row">
+<textarea id="p" rows="2">Use calc: what is 123456789 * 987654321?</textarea>
+<button id="go" class="p">Run</button></div>
+<p id="fwnote" class="sub" style="margin:6px 0 0"></p>
+<details><summary>How to read this</summary>
+<p>Qwen writes a <code>calc</code> tool call. Then 11 compiled layers in front of Qwen's own run a real RV32IM CPU: each executed instruction is one <em>record</em> of "chip tokens" (the colored pills). The CPU's registers, RAM and program counter live in Gated-DeltaNet state. The firmware is <code>calc.c</code> (a bignum calculator using an 8×128-digit "digit file" coprocessor). Qwen never sees those tokens; it only reads the printed answer.</p>
+<p>This page decodes the stream with a shadow reference machine (it must match token for token) and shows the machine state. Use the slider / play to replay the run.</p></details></div>
+
+<div class="card" style="margin-top:12px"><div id="bar">
+<button id="pl">▶ Replay</button><button id="st0" title="back 1">◀</button><button id="st1" title="forward 1">▶|</button>
+<select id="spd"><option value="5">5 instr/s</option><option value="30" selected>30 instr/s</option><option value="150">150 instr/s</option><option value="600">600 instr/s</option><option value="3000">3000 instr/s</option></select>
+<input type="range" id="seek" min="0" max="0" value="0"><span id="pos" class="mono">0 / 0</span>
+<label class="sub"><input type="checkbox" id="live" checked> follow live</label></div>
+<canvas id="tl" width="1200" height="30" style="margin-top:8px;cursor:pointer"></canvas>
+<div class="key" style="margin-top:4px"><span><i style="background:var(--alu)"></i>ALU / immediates</span><span><i style="background:var(--mem)"></i>load / store</span><span><i style="background:var(--ctl)"></i>branch / jump</span><span><i style="background:var(--bn)"></i>bignum digit file</span><span><i style="background:var(--io)"></i>I/O, exit</span><span><i style="background:var(--nop)"></i>refresh</span></div>
+<div id="stats" style="margin-top:8px"></div></div>
+
+<div class="grid g2">
+ <div class="card"><h2>Conversation</h2><div id="out"></div><div id="callbox"></div><div id="err"></div><div id="fin" class="sub"></div></div>
+ <div class="card"><h2>Current instruction</h2><div id="cur">–</div><div id="curtok" style="margin:4px 0"></div><div id="desc"></div><div id="fnline" class="sub" style="margin-top:4px"></div></div>
+</div>
+
+<div class="grid g2">
+ <div class="card"><h2>Registers <span class="sub" style="text-transform:none">(highlight = written by this instruction)</span></h2><div id="regs"></div>
+  <h2 style="margin-top:12px">Bignum digit file <span class="sub" style="text-transform:none">8 × 128 decimal digits · d7 is the constant 1</span></h2><div id="bn"></div></div>
+ <div class="card"><h2>Program <span class="sub" style="text-transform:none">(left: times executed)</span></h2><div id="code"></div>
+  <details><summary id="csum">C source of this function</summary><pre id="csrc"></pre></details></div>
+</div>
+
+<div class="grid g2">
+ <div class="card"><h2>RAM <span class="sub" style="text-transform:none">32 KB as 8192 words (128 per row); bright = latest write, blue box = this load</span></h2>
+  <canvas id="ram" width="512" height="256" style="image-rendering:pixelated"></canvas><div id="mlog" class="mono" style="margin-top:6px"></div></div>
+ <div class="card"><h2>Machine output (putchar)</h2><div id="stdout" class="mono" style="white-space:pre-wrap;min-height:36px"></div>
+  <h2 style="margin-top:12px">Last instructions</h2><div id="log"></div></div>
+</div>
+
+<div class="grid g3">
+ <div class="card"><h2>Where the time goes (by function)</h2><div id="fns"></div></div>
+ <div class="card"><h2>Instruction mix</h2><div id="ops"></div></div>
+ <div class="card"><h2>Chip-token cost</h2><div id="fams"></div><div class="sub" id="tpi" style="margin-top:6px"></div></div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const ABI="zero ra sp gp tp t0 t1 t2 s0 s1 a0 a1 a2 a3 a4 a5 a6 a7 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 t3 t4 t5 t6".split(' ');
+const SPECIAL=['<tool_response>','</tool_response>','<think>','</think>'];
+const hex=(v,w=8)=>'0x'+(v>>>0).toString(16).padStart(w,'0'), s32=v=>v|0;
+const TIP={V:'Value chunk: 15 more bits of a result, not final yet',F0:'Final value token: result fits in one token (15-bit signed)',F1:'Final: result = bits 15..29 + the previous V chunk',F2:'Final: top 2 bits + two previous V chunks',J:'Jump: the new program-counter anchor (PC = base + 4*(anchor + n))',R:'Refresh: re-states the PC anchor every 63 instructions; nothing executes',NT:'No-write: instruction committed with nothing to report (not-taken branch, write to x0, ...)',ST0:'Store word to RAM (value head 0)',ST1:'Store word to RAM (value head 1)',SS0:'Merged word after a byte/half store',SS1:'Merged word after a byte/half store',BD:'Digit-file row step: one decimal digit (+carry) written',SC:'BSCAN found one more ASCII digit',BYTE:'putchar: output byte (256+ = special token such as <tool_response>)',HALT:'exit: the machine parks until the next call',QS:'Divide: first quotient digit computed',QD:'Divide: one hex quotient digit',GO:'Start of a run',FLT:'Fault',HEX:'Fault PC digit'};
+const cls=e=>{if(e.k==='R')return'nop';const o=e.op;
+ if(/^(LB|LH|LW|LBU|LHU|SB|SH|SW)$/.test(o))return'mem';if(/^(B(EQ|NE|LT|GE|LTU|GEU)|JAL|JALR)$/.test(o))return'ctl';
+ if(/^(BMAC|BMSB|BLD|BGET|BSCAN|BPRD)$/.test(o))return'bn';if(/^(ECALL|EBREAK|FENCE)$/.test(o))return'io';return'alu'};
+let P=null,EV=[],GO=null,cur=0,st=null,playing=false,live=true,running=false,dirty=false,acc=0,lastT=0;
+async function loadProgram(fw){P=await (await fetch('/program?fw='+fw)).json();P.syms.sort((a,b)=>a[1]-b[1]);
+ $('p').disabled=!P.bridge;$('fwnote').textContent=P.bridge?'Qwen writes the tool call; the CPU runs calc.c.':'Standalone program: no Qwen involved. A forced </tool_call> token makes the compiled layers emit GO and run this ELF from its entry point, entirely inside the model\'s forward passes.';
+ EV=[];GO=null;st=null;cur=0;dirty=true}
+async function init(){const fws=await (await fetch('/firmwares')).json();$('fw').innerHTML=fws.map(([k,l])=>`<option value="${k}">${l}</option>`).join('');
+ $('fw').onchange=()=>loadProgram($('fw').value);await loadProgram($('fw').value);requestAnimationFrame(tick)}
+const fnAt=pc=>{if(!P)return null;let lo=0,hi=P.syms.length-1,r=null;while(lo<=hi){const m=(lo+hi)>>1;if(P.syms[m][1]<=pc){r=P.syms[m];lo=m+1}else hi=m-1}return r&&pc<r[1]+r[2]?r:null};
+function fresh(){const regs=Array(32).fill(0);if(GO)for(const[i,v]of GO.x)regs[i]=v;
+ return{regs,ch:new Set(),mem:new Map(),mlog:[],bn:Array(8).fill('0'),bnch:new Set(),out:[],heat:new Map(),fn:{},ops:{},fam:{},ntok:0,n:0,ninstr:0,last:null,ld:null}}
+function apply(s,e){s.last=e;s.n++;s.ch=new Set();s.bnch=new Set();s.ld=null;
+ if(e.k==='i')s.ninstr++;
+ for(const[r,v]of e.x||[]){s.regs[r]=v;s.ch.add(r)}
+ const pi=(e.pc-P.base)>>2;s.heat.set(pi,(s.heat.get(pi)||0)+1);
+ const f=fnAt(e.pc);const fnm=f?f[0]:'?';s.fn[fnm]=(s.fn[fnm]||0)+1;
+ const on=e.k==='R'?'refresh':e.op;s.ops[on]=(s.ops[on]||0)+1;
+ for(const[f2]of e.toks)s.fam[f2]=(s.fam[f2]||0)+1;s.ntok+=e.toks.length;
+ if(e.st){s.mem.set(e.st[0]>>2,{v:e.st[1],n:s.n});s.mlog.push(e)}
+ if(e.ld)s.ld=e.ld;
+ for(const k in e.bn||{}){s.bn[k]=e.bn[k];s.bnch.add(+k)}
+ if(e.out!==undefined)s.out.push(e.out)}
+function seek(n){n=Math.max(0,Math.min(EV.length,n));if(!st||n<st.n)st=fresh();while(st.n<n)apply(st,EV[st.n]);cur=n;dirty=true}
+function region(a){return a>=0x8000&&a<0x8800?'text buffer (tool-call tokens)':a>=0x20000&&a<0x40000?'read-only data':'RAM'}
+function describe(e){if(e.k==='R')return'Anchor refresh: the trace re-states where the PC is. Nothing executes.';
+ const o=e.op,w=(e.x&&e.x[0])?`${ABI[e.x[0][0]]} <- ${hex(e.x[0][1])} (${s32(e.x[0][1])})`:'(no register written)';
+ if(e.ld)return`Load from ${hex(e.ld[0])} [${region(e.ld[0])}] -> ${w}`;
+ if(e.st)return`Store to ${hex(e.st[0])} [RAM]: word is now ${hex(e.st[1])}`;
+ if(e.taken!==undefined)return e.taken?'Branch TAKEN: emits a J token with the new PC anchor':'Branch not taken: NT token, the PC just advances';
+ if(o==='JAL'||o==='JALR')return`Jump / call / return: the J token carries the target. ${e.x?'Link: '+w:''}`;
+ const a=e.bnargs||{};
+ if(o==='BLD')return`Bignum LOAD: ${a.n} ASCII digits from RAM (ending at ${hex(a.a||0)}) into digit-file d${a.dd} at digit ${a.off}. ${e.x?'Carry out: '+w:''}`;
+ if(o==='BMAC'&&a.ovw&&a.m===0)return`Bignum CLEAR: zero ${a.n} digits of d${a.dd} from digit ${a.off} (multiply-accumulate by 0; one BD token per digit)`;
+ if(o==='BMAC')return`Bignum MULTIPLY-ACCUMULATE: d${a.dd} ${a.ovw?'=':'+='} d${a.ds} x ${a.m}, over ${a.n} digits from digit ${a.off} (one BD token per digit, with carry)`;
+ if(o==='BMSB')return`Bignum MULTIPLY-SUBTRACT: d${a.dd} -= d${a.ds} x ${a.m}, over ${a.n} digits (long-division step)`;
+ if(o==='BGET')return`Bignum READ one digit: d${a.dd}[${a.off}] -> ${w}`;
+ if(o==='BSCAN')return`Scan ASCII digits at ${hex(a.a||0)} -> ${w}`;
+ if(o==='BPRD')return`Print one digit of a digit-file register via putchar`;
+ if(o==='ECALL'){if(e.halt)return'exit(): the machine parks; Qwen takes over again';if(e.out!==undefined)return e.out<256?`putchar(${JSON.stringify(String.fromCharCode(e.out))}): the echo token is fed back to Qwen`:`putchar(${SPECIAL[e.out-256]||'special'}): special token echoed to Qwen`}
+ return`ALU: ${w}`}
+const pill=(f,p)=>`<span class="pill fam-${f}" title="${(TIP[f]||'').replace(/"/g,'')}">${f}${f==='NT'||f==='HALT'||f==='GO'||f.startsWith('ST')||f.startsWith('SS')?'':'('+p+')'}</span>`;
+const pills=toks=>{let o='',i=0;while(i<toks.length){let j=i;while(j<toks.length&&toks[j][0]===toks[i][0]&&toks[j][1]===toks[i][1])j++;o+=pill(toks[i][0],toks[i][1])+(j-i>1?`<span class="sub">×${j-i} </span>`:'');i=j}return o};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function render(){dirty=false;if(!P)return;
+ $('seek').max=EV.length;$('seek').value=cur;$('pos').textContent=cur+' / '+EV.length+' instr';
+ const s=st||fresh(),e=s.last;
+ if(e){$('cur').innerHTML=e.k==='R'?'refresh':`<span style="color:var(--${cls(e)})">${esc(e.asm)}</span>`;
+  $('curtok').innerHTML=pills(e.toks)+`<span class="sub"> ${e.toks.length} token${e.toks.length>1?'s':''}</span>`;
+  $('desc').textContent=describe(e);const f=fnAt(e.pc);
+  $('fnline').textContent=`step ${e.i} · pc ${hex(e.pc,5)}${f?' · in '+f[0]+'()':''}`}
+ else{$('cur').textContent='–';$('curtok').innerHTML='';$('desc').textContent=GO?'Parked at the exit ecall; press Replay, or scrub the slider.':'Run a "Use calc:" prompt to boot the CPU.';$('fnline').textContent=''}
+ $('regs').innerHTML=s.regs.map((v,i)=>`<div class="reg ${s.ch.has(i)?'ch':''} ${v?'':'z'}" title="${i?s32(v):0}"><b>${ABI[i]}</b><span>${hex(v)}</span></div>`).join('');
+ $('bn').innerHTML=s.bn.map((v,i)=>`<div class="bn ${s.bnch.has(i)?'ch':''} ${v==='0'?'z':''}"><b>d${i}</b><span>${v}</span></div>`).join('');
+ const pc=e?e.pc:(GO?GO.pc:P.base),ci=(pc-P.base)>>2,lo=Math.max(0,ci-9),hi=Math.min(P.asm.length,lo+22);let h='';
+ for(let i=lo;i<hi;i++){const a=P.base+4*i,f=fnAt(a);if(f&&f[1]===a)h+=`<div class="fnh">${f[0]}:</div>`;
+  h+=`<div class="ln ${i===ci&&e?'cur':''}"><span class="h">${s.heat.get(i)||''}</span><span class="a">${a.toString(16)}</span><span>${esc(P.asm[i])}</span></div>`}
+ $('code').innerHTML=h;
+ const f=fnAt(pc);const sf=f&&P.src[f[0]];$('csum').textContent=f?(sf?`Source: ${f[0]}()`:(P.src['*']?`Program source (current function ${f[0]}() is library code)`:`${f[0]}()`)):'Source';$('csrc').textContent=f?(sf||P.src['*']||'(no source for '+f[0]+')'):'';
+ const cv=$('ram'),x=cv.getContext('2d');x.clearRect(0,0,512,256);const cs=getComputedStyle(document.documentElement);
+ x.fillStyle=cs.getPropertyValue('--bd');for(let r=0;r<64;r++)x.fillRect(0,r*4+3,512,1);
+ for(const[wi,m]of s.mem){const age=Math.min(1,(s.n-m.n)/400);x.globalAlpha=1-0.65*age;x.fillStyle=cs.getPropertyValue('--mem');x.fillRect((wi%128)*4,((wi/128)|0)*4,4,3)}
+ x.globalAlpha=1;if(s.last&&s.last.st){const wi=s.last.st[0]>>2;x.fillStyle=cs.getPropertyValue('--ctl');x.fillRect((wi%128)*4-1,((wi/128)|0)*4-1,6,5)}
+ if(s.ld&&s.ld[0]<0x8000){const wi=s.ld[0]>>2;x.strokeStyle=cs.getPropertyValue('--acc');x.strokeRect((wi%128)*4-1.5,((wi/128)|0)*4-1.5,7,6)}
+ $('mlog').innerHTML=s.mlog.slice(-5).reverse().map(m=>`store ${hex(m.st[0],4)} <- ${hex(m.st[1])}${m.st[2]<4?' ('+m.st[2]+'-byte)':''}`).map(esc).join('<br>')||'no stores yet';
+ $('stdout').textContent=s.out.map(c=>c<256?String.fromCharCode(c):SPECIAL[c-256]||'?').join('')||'';
+ let lg='';for(let i=Math.max(0,cur-9);i<cur;i++){const q=EV[i];lg+=`<div style="opacity:${0.45+0.55*(i-cur+9)/9}"><span class="n">${q.i}</span><span class="a">${q.pc.toString(16)}</span><span class="s">${q.k==='R'?'(refresh)':esc(q.asm)}</span>${pills(q.toks)}</div>`}
+ $('log').innerHTML=lg;
+ const bars=(el,obj,top,color)=>{const en=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,top),mx=en.length?en[0][1]:1;
+  $(el).innerHTML=en.map(([k,v])=>`<div class="bar"><span class="l" title="${k}">${k}</span><span class="t"><i style="width:${100*v/mx}%${color?';background:'+color:''}"></i></span><span class="n">${v}</span></div>`).join('')||'<span class="sub">–</span>'};
+ bars('fns',s.fn,9);bars('ops',s.ops,9,'var(--mem)');bars('fams',s.fam,9,'var(--ctl)');
+ $('tpi').textContent=s.n?`${s.ntok} chip tokens for ${s.n} records (${(s.ntok/s.n).toFixed(2)} per instruction)`:'';
+ $('stats').innerHTML=`<span class="stat"><b>${s.ninstr}</b><span>instructions executed</span></span><span class="stat"><b>${s.ntok}</b><span>chip tokens</span></span><span class="stat"><b>${Object.keys(s.fn).length}</b><span>functions touched</span></span>`;
+ drawTL()}
+function drawTL(){const c=$('tl'),x=c.getContext('2d'),W=c.width,H=c.height,cs=getComputedStyle(document.documentElement);x.clearRect(0,0,W,H);
+ const N=Math.max(EV.length,1),B=Math.min(N,W);
+ for(let b=0;b<B;b++){const s0=Math.floor(b*N/B),e0=Math.max(s0+1,Math.floor((b+1)*N/B)),cnt={};
+  for(let i=s0;i<e0&&i<EV.length;i++){const k=cls(EV[i]);cnt[k]=(cnt[k]||0)+1}
+  const k=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];if(!k)continue;x.fillStyle=cs.getPropertyValue('--'+k[0]);x.globalAlpha=s0<cur?1:.35;x.fillRect(b*W/B,0,W/B+1,H)}
+ x.globalAlpha=1;x.fillStyle=cs.getPropertyValue('--fg');x.fillRect(Math.min(W-2,cur/N*W),0,2,H)}
+const unlive=()=>{live=false;$('live').checked=false};
+$('tl').onclick=ev=>{const r=$('tl').getBoundingClientRect();unlive();seek(Math.round((ev.clientX-r.left)/r.width*EV.length))};
+$('seek').oninput=e=>{unlive();seek(+e.target.value)};
+$('st0').onclick=()=>{unlive();seek(cur-1)};$('st1').onclick=()=>{unlive();seek(cur+1)};
+$('live').onchange=e=>{live=e.target.checked;if(live)seek(EV.length)};
+$('pl').onclick=()=>{playing=!playing;if(playing){unlive();if(cur>=EV.length)seek(0)}$('pl').textContent=playing?'⏸ Pause':'▶ Replay'};
+function tick(t){const dt=(t-lastT)/1000;lastT=t;
+ if(playing){acc+=dt*(+$('spd').value);const n=Math.floor(acc);if(n){acc-=n;const target=Math.min(EV.length,cur+n);if(target>=EV.length&&!running){playing=false;$('pl').textContent='▶ Replay'}seek(target)}}
+ if(dirty)render();requestAnimationFrame(tick)}
+let cpuEl=null,cpuN=0,echoEl=null,inRun=false;
+function addTok(batch){for(const[k,v]of batch){
+ if(k==='c'){if(!inRun){inRun=true;cpuEl=document.createElement('span');cpuEl.className='cpu';cpuN=0;
+   cpuEl.innerHTML='<span class="cn"></span> <span class="ec" style="color:var(--fg)"></span>';$('out').append(cpuEl);echoEl=cpuEl.querySelector('.ec')}
+  cpuEl.querySelector('.cn').textContent='⚙ CPU running · '+(++cpuN)+' chip tokens';if(v==='HALT')inRun=false}
+ else if(inRun){echoEl.textContent+=v}else $('out').append(document.createTextNode(v))}
+ $('out').scrollTop=1e9}
+$('go').onclick=async()=>{
+ EV=[];GO=null;st=null;cur=0;cpuEl=null;inRun=false;playing=false;$('pl').textContent='▶ Replay';$('out').textContent='';$('err').textContent='';$('fin').textContent='';$('callbox').innerHTML='';
+ live=true;$('live').checked=true;running=true;$('go').disabled=true;seek(0);
+ try{const r=await fetch('/run',{method:'POST',body:JSON.stringify({prompt:$('p').value,max_new:600,fw:$('fw').value})});
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+   let i;while((i=buf.indexOf('\n\n'))>=0){const m=buf.slice(0,i);buf=buf.slice(i+2);
+    const ev=m.match(/event: (\w+)/)[1],d=JSON.parse(m.match(/data: (.*)/)[1]);
+    if(ev==='tokens'){addTok(d.tok);for(const e of d.ev){if(e.k==='go'){GO=e;if(e.call)$('callbox').innerHTML='<div class="call mono"><b>Qwen\'s tool call captured by the CPU</b><br>'+esc(e.call).replace(/\n/g,'<br>')+'</div>';st=null}else EV.push(e)}
+      if(live){seek(EV.length)}else dirty=true}
+    else if(ev==='done'){$('fin').textContent=`done in ${d.seconds.toFixed(1)}s · ${d.instructions} instructions · token mismatches vs reference machine: ${d.trace_mismatch} · lock error: ${d.lock_error??'none'}`}
+    else if(ev==='error')$('err').textContent=d.message;}}
+ }catch(e){$('err').textContent=String(e)}
+ running=false;$('go').disabled=false;dirty=true};
+addEventListener('resize',()=>{dirty=true});
+init();
+</script></body></html>

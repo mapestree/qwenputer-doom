@@ -1,0 +1,43 @@
+diff --git a/experimental/riscv/chipformer/rv/chat.py b/experimental/riscv/chipformer/rv/chat.py
+index 2bfbb2d..1f95690 100644
+--- a/experimental/riscv/chipformer/rv/chat.py
++++ b/experimental/riscv/chipformer/rv/chat.py
+@@ -323,7 +323,8 @@ class RvChat:
+     @torch.no_grad()
+     def generate(self, ids: list[int], machine: "ref.Machine", max_new: int = 4000,
+                  max_chip: int = 60000, check_head: bool = False, verbose: bool = False,
+-                 lock: "BR.Session | None" = None, on_token=None) -> dict:
++                 lock: "BR.Session | None" = None, on_token=None, first: int | None = None,
++                 force: list[int] | None = None, stop_after_halt: bool = False) -> dict:
+         """Greedy decoding after the prompt ``ids`` with the parked ``machine`` loaded.
+         ``lock`` (a Session on a copy of the machine): stop at the first token that differs from
+         the reference's. ``on_token(id)`` is called with every generated model id as it comes."""
+@@ -350,12 +351,18 @@ class RvChat:
+         pos = len(ids)  # the next text token's RoPE position
+         gen, n_text, n_chip_tok = [], 0, 0
+         # the prompt's last position: Qwen predicts (nothing captured yet)
+-        nxt = int(torch.argmax(logits[: self.v0]))
++        # first / force (viewer experiments): text tokens forced in place of Qwen's at the positions Qwen
++        # predicts, in order; stop_after_halt: end once a run's HALT echo is in (Qwen does not continue)
++        forced = ([first] if first is not None else []) + list(force or [])
++        halt = self.v0 + S.tok("HALT")
++        nxt = forced.pop(0) if forced else int(torch.argmax(logits[: self.v0]))
+         t0 = time.time()
+         mismatch = 0
+         t_chip = t_text = 0.0
+         expect, lock_error = [], None
+         while n_text < max_new and n_chip_tok < max_chip:
++            if stop_after_halt and len(gen) >= 2 and gen[-2] == halt:
++                break
+             gen.append(nxt)
+             if on_token is not None:
+                 on_token(nxt)
+@@ -423,7 +430,7 @@ class RvChat:
+                 q = int(torch.argmax(logits))
+                 if ct is not None and check_head and q != ct:
+                     mismatch += 1
+-                nxt = ct if ct is not None else int(torch.argmax(logits[: self.v0]))
++                nxt = ct if ct is not None else forced.pop(0) if forced else int(torch.argmax(logits[: self.v0]))
+                 t_text += time.time() - ts
+         dt = time.time() - t0
+         return {"tokens": gen, "text_tokens": n_text, "chip_tokens": n_chip_tok,

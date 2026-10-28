@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Compile a C program for the chipformer RV32 machine (ROM/DROM/RAM map) inside the qwenputer-rv image.
+#   toolchain/rvcc OUT.elf file.c [more.c ...] [-DFOO ...]     (paths relative to the qwenputer dir)
+# Same flags as upstream env/build_tests.sh: rv32im_zba, -O2, picolibc, crt0 + sys.c.
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+OUT=$1; shift
+exec docker run --rm -e CFLAGS -u "$(id -u):$(id -g)" -v "$ROOT:/w" -w /w qwenputer-rv bash -c '
+  set -euo pipefail
+  ENV=upstream/experimental/riscv/chipformer/rv/env
+  PICO=/usr/lib/picolibc/riscv64-unknown-elf
+  GCC=riscv64-unknown-elf-gcc
+  LIBGCC=$($GCC -march=rv32im -mabi=ilp32 -print-libgcc-file-name)
+  OUT=$1; shift
+  $GCC -march=rv32im_zba -mabi=ilp32 ${CFLAGS:--O2} -isystem $PICO/include -I$ENV \
+    -nostdlib -nostartfiles -static -T$ENV/rom.ld -o "$OUT" $ENV/crt0.S "$@" $ENV/sys.c \
+    -Wl,--start-group $PICO/lib/release/rv32im/ilp32/libc.a $LIBGCC -Wl,--end-group
+  riscv64-unknown-elf-size -A "$OUT" | grep -E "^\.(text|rodata|data|bss)"
+' _ "$OUT" "$@"
